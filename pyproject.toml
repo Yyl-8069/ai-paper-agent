@@ -1,0 +1,20 @@
+[project]
+name = "ai-paper-agent"
+version = "0.1.0"
+description = "Local AI paper collection, Markdown validation, and weekly reports"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "httpx==0.28.1",
+  "feedparser==6.0.14",
+  "pymupdf==1.26.7",
+  "pymupdf4llm==0.0.27",
+  "pymarkdownlnt==0.9.41",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
