@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "real-transformer-v1",
+      "source_id": "1706.03762",
+      "version": 1,
+      "expected": [
+        "title and abstract present",
+        "15 pages",
+        "warn unverified equations",
+        "report actual lint issues"
+      ]
+    }
+  ],
+  "model_evaluation": "not_run_no_api_key"
+}
