@@ -1,7 +1,7 @@
 # 验证记录
 
 2026-10-30，Windows，独立 Python 3.11.18。
-- 代码测试：当前 32 项通过；覆盖编号、并发去重、版本、真实 PDF 转换、真实 Markdown 扫描、四种清理、部分删除失败、已删周报不自动重建、周日 21 点与迟到收集补充。
+- 代码测试：当前 38 项通过；覆盖编号、并发去重、版本、真实 PDF 转换、真实 Markdown 扫描、四种清理、部分删除失败、已删周报不自动重建、周日 21 点与迟到收集补充。
 - 真实来源：arXiv 最近 7 天检索返回 2 条；Hugging Face Daily Papers 返回 2 条。保存在 tmp/latest-smoke.json、tmp/hot-smoke.json，未写成恒定可用保证。
 - 实际下载与本机转换：Attention Is All You Need，arXiv 1706.03762v1，15 页，提取 Markdown 38558 字符；图片与检查报告存在于 tmp/smoke-library。
 - 实际格式检查：198 个问题，其中 MD012 171、MD040 8、MD031 7、MD045 6、MD036 3、MD037 2、MD022 1。该转换文件没有宣称格式通过。

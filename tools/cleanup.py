@@ -2,7 +2,29 @@ import json
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import unquote
 from app.store import atomic_text,digest
+
+
+def protected_assets(store,selected_paths):
+    arts=store.artifacts()
+    assets={store.safe_path(a["path"]) for a in arts if a["kind"]=="asset"}
+    protected=set()
+    for artifact in arts:
+        if artifact["kind"] not in {"markdown","summary"} or artifact["path"] in selected_paths:
+            continue
+        document=store.safe_path(artifact["path"])
+        if not document.exists():continue
+        try:
+            text=unquote(document.read_text(encoding="utf-8")).casefold()
+        except (OSError,UnicodeError):
+            return assets
+        # shortcut: conservative basename matching may keep unrelated images;
+        # use a Markdown/HTML dependency parser if retained storage becomes material.
+        for asset in assets:
+            if asset.name.casefold() in text:
+                protected.add(asset)
+    return protected
 
 def plan_cleanup(root,selection,mode,store):
     if Path(root).resolve()!=store.root or mode not in {"pdf","markdown","summary","all"}:
@@ -22,15 +44,7 @@ def plan_cleanup(root,selection,mode,store):
         match=match or (mode in {"summary","all"} and a["path"] in chosen_reports)
         if match:selected.append(a)
     selected_paths={a["path"] for a in selected}
-    remaining_md=[store.safe_path(a["path"]) for a in arts
-                  if a["kind"]=="markdown" and a["path"] not in selected_paths
-                  and store.safe_path(a["path"]).exists()]
-    # Preserve an asset if another registered document references it.
-    protected=set()
-    for md in remaining_md:
-        for match in re.findall(r"!\[[^\]]*\]\(([^)]+)\)",md.read_text(encoding="utf-8")):
-            try:protected.add((md.parent/match.strip("<>")).resolve())
-            except (OSError,ValueError):pass
+    protected=protected_assets(store,selected_paths)
     targets=[]
     for a in selected:
         p=store.safe_path(a["path"])
@@ -54,6 +68,9 @@ def execute_cleanup(plan,confirmation,store):
     if json.loads(saved.read_text(encoding="utf-8"))!=plan or plan["root"]!=str(store.root):
         raise ValueError("删除预览发生变化")
     registered={a["path"] for a in store.artifacts()}
+    protected=protected_assets(store,{t["path"] for t in plan["targets"]})
+    if any(t["kind"]=="asset" and store.safe_path(t["path"]) in protected for t in plan["targets"]):
+        raise ValueError("Document dependencies changed; create a new cleanup preview")
     for item in plan["targets"]:
         p=store.safe_path(item["path"])
         if item["path"] not in registered:raise ValueError("未登记目标")

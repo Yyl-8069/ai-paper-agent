@@ -61,7 +61,8 @@ def write_report(store,kind,period,data):
 def summarize_week(week,store,researcher=None,force=False):
     start,end=week_bounds(week)
     deleted={a["path"] for a in store.artifacts() if a["status"]=="deleted"}
-    if not force and any(r["kind"]=="weekly" and r["period"]==week and r["path"] in deleted for r in store.reports()):
+    history=sorted([r for r in store.reports() if r["kind"]=="weekly" and r["period"]==week],key=lambda r:r["created"])
+    if not force and history and history[-1]["path"] in deleted:
         raise ValueError("Report was intentionally deleted; use --force to regenerate")
     existing=[r for r in store.reports() if r["kind"]=="weekly" and r["period"]==week
               and store.safe_path(r["path"]).exists()]
@@ -92,7 +93,8 @@ def due_weeks(now,store):
     reports=store.reports()
     for week,refs in groups.items():
         previous=[r for r in reports if r["kind"]=="weekly" and r["period"]==week]
-        if any(r["path"] in deleted for r in previous):continue
+        previous.sort(key=lambda r:r["created"])
+        if previous and previous[-1]["path"] in deleted:continue
         if not any(store.safe_path(r["path"]).exists() and refs<=set(r["coverage"]) for r in previous):
             due.append(week)
     return sorted(due)

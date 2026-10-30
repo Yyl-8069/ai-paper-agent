@@ -16,8 +16,11 @@ $taskXml = @"
 "@
 $taskPath = Join-Path $PSScriptRoot 'weekly-task.xml'
 [IO.File]::WriteAllText($taskPath, $taskXml, [Text.Encoding]::Unicode)
+$ErrorActionPreference = 'Continue'
 & schtasks.exe /Query /TN $taskName *> $null
-if ($LASTEXITCODE -eq 0) { throw "Task already exists. Inspect it in Windows Task Scheduler before replacing." }
+$queryExit = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($queryExit -eq 0) { throw "Task already exists. Inspect it in Windows Task Scheduler before replacing." }
 & schtasks.exe /Create /TN $taskName /XML $taskPath
 if ($LASTEXITCODE -ne 0) { throw "Task creation failed." }
 & schtasks.exe /Query /TN $taskName /FO LIST

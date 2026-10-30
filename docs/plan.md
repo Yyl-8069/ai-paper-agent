@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python、SQLite、PyMarkdown；转换器和总结模型经过任务 1 的机器与接口验证后选定并锁版本。初期采用本地命令菜单，网页界面不在本计划范围。
 
-**Spec:** [已审阅设计](ai-paper-agent-design.md)。本计划命令和测试均为待实现目标，不表示已经执行。
+**Spec:** [已审阅设计](design.md)。本计划命令和测试均为待实现目标，不表示已经执行。
 
 ## Global Constraints
 

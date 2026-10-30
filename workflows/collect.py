@@ -22,11 +22,12 @@ def collect_candidates(candidates,store,downloader=download_pdf,restore=False):
             atomic_text(metadata,json.dumps({**candidate,"ref":ref},ensure_ascii=False,indent=2))
             store.record_artifact(ref,"metadata",metadata)
             pdf=directory/"original.pdf";md=directory/"paper.md"
-            if not md.exists():
-                if not pdf.exists():
-                    downloader(candidate,pdf)
-                    store.set_state(ref,"downloaded")
+            if not pdf.exists() and (restore or not md.exists()):
+                downloader(candidate,pdf)
+                store.set_state(ref,"downloaded")
+            if pdf.exists():
                 store.record_artifact(ref,"pdf",pdf)
+            if not md.exists():
                 converted=convert_pdf(pdf,directory)
                 atomic_text(directory/"conversion.json",json.dumps(converted,ensure_ascii=False,indent=2))
                 for image in converted["assets"]:

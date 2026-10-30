@@ -10,3 +10,5 @@ config.json
 library/
 .superpowers/
 tmp/
+
+docs/weekly-task.xml
