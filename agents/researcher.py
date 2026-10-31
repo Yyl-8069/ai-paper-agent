@@ -2,13 +2,14 @@ import json
 import re
 from pathlib import Path
 import httpx
+from tools.credentials import validate_api_key
 
 PROMPTS=Path(__file__).resolve().parents[1]/"prompts"
 
 class Researcher:
     def __init__(self,key,model="deepseek-flash",client=None):
         if not key:raise ValueError("请先配置 DEEPSEEK_API_KEY")
-        self.key=key;self.model=model;self.client=client
+        self.key=validate_api_key(key);self.model=model;self.client=client
 
     def summarize(self,materials,kind):
         if not materials:

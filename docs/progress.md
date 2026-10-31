@@ -25,3 +25,5 @@ Final fix pass: added 6 failing regression cases, repaired all 4 findings; full 
 Ruling: conservative filename matching preserves images referenced by retained Markdown/HTML/reports, including encoded filenames; may keep extra assets with identical names.
 Schedule installation requires user administrator action; code includes install-weekly.cmd and records exact Windows denial.
 No main branch, remote, push, deployment or automatic collection/deletion created.
+
+FastAPI continuation 2026-10-31: local web/API implemented; 50 tests pass. Actual localhost endpoints and browser arXiv search verified. Single-instance OS lock prevents false interrupted status on duplicate startup; public errors never persist raw exceptions. Service running on127.0.0.1:8000; no paid model calls.

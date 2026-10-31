@@ -1,6 +1,6 @@
 [project]
 name = "ai-paper-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local AI paper collection, Markdown validation, and weekly reports"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -9,6 +9,8 @@ dependencies = [
   "pymupdf==1.26.7",
   "pymupdf4llm==0.0.27",
   "pymarkdownlnt==0.9.41",
+  "fastapi>=0.162.0",
+  "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]

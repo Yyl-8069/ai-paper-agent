@@ -4,9 +4,9 @@ from agents.researcher import Researcher
 
 PROJECT=Path(__file__).resolve().parents[1]
 
-def load_config():
+def load_config(path=None):
     values={}
-    path=PROJECT/".env"
+    path=Path(path) if path is not None else PROJECT/".env"
     if path.exists():
         for line in path.read_text(encoding="utf-8").splitlines():
             if "=" in line and not line.lstrip().startswith("#"):

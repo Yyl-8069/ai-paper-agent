@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import sys
 from app.config import PROJECT,researcher
+from tools.credentials import validate_api_key
 from app.store import Store,atomic_text
 from tools.search import search_papers,hot_papers,arxiv_by_ids
 from tools.cleanup import plan_cleanup,execute_cleanup
@@ -32,6 +33,7 @@ def print_result(value):
 def configure():
     key=getpass.getpass("输入 DeepSeek API Key（不显示，保存到本机 .env）：").strip()
     if not key or any(c.isspace() for c in key):raise ValueError("密钥为空或包含空白")
+    validate_api_key(key)
     model=input("模型名称 [deepseek-flash]：").strip() or "deepseek-flash"
     if any(c.isspace() for c in model):raise ValueError("模型名称无效")
     atomic_text(PROJECT/".env","DEEPSEEK_API_KEY="+key+"\nDEEPSEEK_MODEL="+model+"\n")

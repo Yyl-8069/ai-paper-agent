@@ -3,6 +3,13 @@
 本地收集 AI 最新和社区热门论文，PDF 转 Markdown 后执行格式检查，
 通过 DeepSeek API 生成中文简报和每周总结，按固定编号管理和选择性清理。
 
+## FastAPI 网页版
+
+双击 start-api.cmd，访问 http://127.0.0.1:8000。接口文档在 /docs。
+网页可配置 DeepSeek、检索与收集、上传 PDF、查看任务、下载文件、生成总结和选择性清理。
+停止后台服务可双击 stop-api.cmd；有任务运行时会拒绝停止，不会终止其他程序。
+详见 [FastAPI 部署说明](docs/fastapi.md) 与 [验证记录](docs/fastapi-validation.md)。
+
 ## 开始使用
 
 项目位于 D:/codex/projects/ai-paper-agent。Python、依赖、缓存和默认资料库均在 D 盘。
