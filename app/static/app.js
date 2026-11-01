@@ -50,7 +50,11 @@ function renderPapers(rows) {
   const body = $("papers");
   body.replaceChildren();
   if (!rows.length) {
-    const cell = node("td", "资料库还没有论文。检索候选或导入本地 PDF 后会显示在这里。", {colspan: "4"});
+    const cell = node("td", "", {colspan: "4"});
+    const empty = node("div", "", {class: "empty-state"});
+    empty.append(node("strong", "资料库还没有论文"));
+    empty.append(node("p", "从上方发现一篇论文，或导入已有的本地 PDF。"));
+    cell.append(empty);
     const tr = node("tr"); tr.append(cell); body.append(tr); return;
   }
   for (const paper of rows) {
@@ -106,6 +110,10 @@ function renderJobs(rows) {
 async function refresh() {
   const [papers, reports, jobs] = await Promise.all([call("/api/papers"), call("/api/reports"), call("/api/jobs")]);
   renderPapers(papers); renderReports(reports); renderJobs(jobs);
+  $("statPapers").textContent = String(papers.length);
+  $("statPdfs").textContent = String(papers.reduce((count, paper) => count + paper.files.filter(file => file.kind === "pdf" && file.exists && file.status === "present").length, 0));
+  $("statReports").textContent = String(reports.filter(report => report.exists).length);
+  $("statJobs").textContent = String(jobs.filter(job => job.status === "queued" || job.status === "running").length);
   previousJobs = JSON.stringify(jobs.map(job => [job.id, job.status, job.updated]));
 }
 async function submitJob(path, body, extra = {}) {
@@ -209,6 +217,7 @@ async function init() {
   $("configState").textContent = config.key_configured ? "密钥已配置（不显示内容）" : "尚未配置密钥；导入本地 PDF 无需密钥";
   $("libraryPath").textContent = config.library;
   await refresh();
+  $("serviceState").textContent = "本机服务已连接";
   notify("已连接本机服务。你可以手动检索论文或导入本地 PDF。");
   setInterval(() => guarded(async () => {
     const jobs = await call("/api/jobs");

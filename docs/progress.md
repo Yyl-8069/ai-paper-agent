@@ -27,3 +27,5 @@ Schedule installation requires user administrator action; code includes install-
 No main branch, remote, push, deployment or automatic collection/deletion created.
 
 FastAPI continuation 2026-10-31: local web/API implemented; 50 tests pass. Actual localhost endpoints and browser arXiv search verified. Single-instance OS lock prevents false interrupted status on duplicate startup; public errors never persist raw exceptions. Service running on127.0.0.1:8000; no paid model calls.
+
+Frontend iteration 2026-11-01: adopted the generic Agency Frontend Developer role for read-only design and final source review; no other project business constraints imported. Light academic workspace implemented in the existing HTML/CSS/JS with real API counters and no added dependencies. Existing API bindings and permanent deletion preview/confirmation preserved. Full suite: 50 passed; node syntax check passed; HTML ID/binding checks passed. Live narrow viewport and library anchor verified; zero-file cleanup preview disables deletion and cancel hides preview. No actual collection, paid API request or deletion performed; desktop-wide visual and performance measurements not completed.
