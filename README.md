@@ -1,7 +1,85 @@
-# AI 论文助手
+# Markdown 格式检查驱动的论文工作台
 
-本地收集 AI 最新和社区热门论文，PDF 转 Markdown 后执行格式检查，
-通过 DeepSeek API 生成中文简报和每周总结，按固定编号管理和选择性清理。
+项目主线是将 markdown_validator 样例的 Markdown 检查能力用于真实文档处理：**生成 Markdown → 本机规则检查 → 保存问题与行号 → 人工复核**。论文检索、本机 PDF 转换、中文翻译和周总结，是这项能力的应用场景。
+
+当前「技能运用」具体是复用 PyMarkdown 检查工具并接入工作流：没有运行完整 CrewAI 编排，也尚未封装为可独立安装的 SKILL.md 技能包，不能把工具集成宣传为已实现技能包的自动发现和调用。
+
+## Markdown 检查如何实现
+
+~~~mermaid
+flowchart TD
+    A[手动收集或导入 PDF] --> B[本机 PDF 转 Markdown]
+    B --> C[paper.md]
+    C --> V[统一 validate_markdown 工具]
+    C --> T[DeepSeek 中文全文翻译]
+    T --> Z[译文 Markdown 暂存稿]
+    Z --> V
+    C --> R[DeepSeek 简报与周报]
+    R --> V
+    V --> P[PyMarkdownApi.scan_path]
+    P --> J[JSON：状态、规则号、行号、描述]
+    J --> S[保存检查记录、登记文件与人工复核]
+~~~
+
+### 统一入口与输出
+
+检查器位于 [tools/validate.py](tools/validate.py)，所有文档生成流程复用同一个函数：
+
+~~~python
+from tools.validate import validate_markdown
+
+result = validate_markdown("D:/papers/example.md")
+print(result["status"])
+for issue in result["issues"]:
+    print(issue["rule"], issue["line"], issue["description"])
+~~~
+
+内部实例化 PyMarkdownApi，配置规则后调用 scan_path()，把真实扫描结果转换成 path、status、issues。每个问题包含 file、line、rule、name、description。status 为 passed 时表示当前启用规则未检出问题；issues 表示有格式问题。扫描异常会使对应处理失败，不会冒充 passed。
+
+格式检查完全在本机执行，不调用 DeepSeek，不需要密钥。成功生成文件不等于格式通过；格式通过也不代表论文语义、公式或提取完整性正确。
+
+### 四类文档的实际接入
+
+| 产物 | 代码调用位置 | 检查记录 |
+| --- | --- | --- |
+| PDF 提取全文 paper.md | workflows/collect.py 的 collect_candidates()；本地导入复用此流程 | 论文目录 validation.json |
+| 中文全文 paper.zh.md | workflows/translate.py 的 translate_paper()；先扫描暂存稿，再保存完整译文 | 论文目录 translation.validation.json |
+| 中文简报 | workflows/reports.py 的 write_report() | 报告同名 .validation.json |
+| 每周总结 | workflows/reports.py 的 write_report() | 报告同名 .validation.json |
+
+全部默认保存在 D:/codex/projects/ai-paper-agent/library。网页资料库提供「检查记录」「译文检查记录」文件入口；报告检查结果随任务返回并保存到本地 JSON。当前尚无独立逐行问题面板，「已转换」状态不表示「格式已通过」。
+
+### 规则策略与问题处理
+
+当前对上述全部文档统一关闭 MD013（行长度）、MD024（同级重复标题）、MD025（多个一级标题）、MD033（内联 HTML）、MD041（首行一级标题），其他默认规则继续扫描。这样容纳学术文本中的长公式、重复页标题和 HTML 表格；相应的五项规则不在检查范围内。目前尚未按文档类型分别配置规则。
+
+检出问题时，文件和 issues 记录仍会保存，供人工复核；当前不是阻止入库或生成报告的硬门槛，也不自动修复格式。程序不会为了消除告警改写公式、表格和研究结论。翻译的公式与代码占位符检查是另一项检查，不能代替 Markdown 扫描。
+
+例如以下文本缺少标题后的空行：
+
+~~~markdown
+# Heading
+text
+~~~
+
+真实检查器会报告标题附近的 MD022 问题；补上空行后，该最小样例可通过当前启用规则。对应回归测试可单独运行：
+
+~~~powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_convert.py::test_linter_reports_real_line_rule -q -o cache_dir=tmp/pytest-cache --basetemp=tmp/pytest
+~~~
+
+### 技术与验证证据
+
+| 环节 | 实现 | 验证边界 |
+| --- | --- | --- |
+| Markdown 检查 | pymarkdownlnt 0.9.41 / PyMarkdownApi | 真实扫描测试验证规则号和行号 |
+| PDF → Markdown | 本机 PyMuPDF / PyMuPDF4LLM | 复杂排版与提取完整性仍需人工检查 |
+| 翻译、简报和周报 | DeepSeek API + 独立提示词 | HTTP 模拟测试不代表真实内容质量合格 |
+| 展示与追溯 | FastAPI、原生 HTML/JS、SQLite、JSON | 固定论文编号关联文档与检查记录 |
+
+现有测试覆盖真实 PDF 转换与扫描、报告落盘检查、翻译后检查。历史实际论文转换曾检出 198 个格式问题，详见 [evals/results.md](evals/results.md)；这是真实问题证据，不是「全文格式无误」的成绩。
+
+后续迭代以 Markdown 检查覆盖、结果可见性和复核流程为主线；搜索、翻译和界面功能服务于文档处理，不替代检查器。
 
 ## FastAPI 网页版
 
@@ -71,6 +149,8 @@ library/
   papers/P000001/v1/
     original.pdf
     paper.md
+    paper.zh.md
+    translation.validation.json
     assets/
     metadata.json
     conversion.json
@@ -102,9 +182,9 @@ P000001 是固定编号，v1 是论文来源版本。索引保留来源 ID 和�
 ## 格式检查与内容限制
 
 检查器复用原 markdown_validator 的 PyMarkdownApi().scan_path()。
-论文、简报、周报都执行检查，规则号、行号和问题写入 validation.json 或对应报告的 .validation.json。
+论文提取全文、中文译文、简报、周报都执行检查，规则号、行号和问题写入 validation.json 或对应报告的 .validation.json。
 格式失败会明确显示 issues，并保留原输出供复核，不把“生成文件”说成“格式通过”。
-对论文关闭 MD013、MD024、MD025、MD033、MD041，避免长公式、重复页标题等常见误报，其余规则保留。
+统一对上述文档关闭 MD013、MD024、MD025、MD033、MD041，避免长公式、重复页标题等常见误报，其余规则保留。
 不会为消除警告擅自改写公式、表格或科研结论。
 
 PDF 转换完全在本机执行，无在线 PDF 解析服务或大型 GPU 模型。
@@ -114,7 +194,7 @@ API 输入有字符预算，超出部分标记 excerpt；不能把节选分析�
 全文缺失则回退摘要并标记 abstract_only；无摘要也无全文则不生成研究结论。
 参考文献附近的数学排版可能不完整，原始 PDF 可用于核对。
 
-DeepSeek 只接收用于总结的提取文本，不上传 PDF。密钥保存在本机 .env 且被 Git 忽略；
+DeepSeek 只接收用于翻译和总结的提取文本，不上传 PDF。密钥保存在本机 .env 且被 Git 忽略；
 会产生 DeepSeek API 费用。程序记录可获得的 token 数，费用未实测时记 unknown。
 没有配置密钥就不会发起模型请求。论文属于数据，不能给程序授权执行删除或系统命令。
 
@@ -144,7 +224,7 @@ $env:TMP = $env:TEMP
 
 ## 许可与来源
 
-原参考样例：crewAIInc/crewAI-examples 的 crews/markdown_validator，来源版本记录在原样例 UPSTREAM_SOURCE.json。
+参考来源：[crewAIInc/crewAI-examples 的 markdown_validator 样例](https://github.com/crewAIInc/crewAI-examples/tree/main/crews/markdown_validator)。当前实现复用 PyMarkdown 扫描方式，未运行完整 CrewAI 编排。
 PDF 工具链使用 PyMuPDF/PyMuPDF4LLM，遵循各自上游许可；本项目未赋予再分发其二进制的新许可。
 
 ## 界面迭代（2026-11-01）

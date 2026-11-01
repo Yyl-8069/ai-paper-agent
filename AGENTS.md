@@ -1,5 +1,8 @@
 # AI 论文助手开发约定
 
+- 项目主线是 Markdown 检查能力的实际运用：统一检查器、工作流覆盖、规则与问题记录、结果展示及复核。论文检索、翻译和周报为应用场景，README 优先解释 Markdown 实现。
+- 准确区分 PyMarkdown 工具集成、完整 CrewAI 编排与独立 SKILL.md 技能包；未实现的能力不得宣称已具备。
+
 - 项目根目录为 D:/codex/projects/ai-paper-agent；所有环境、缓存、临时文件和资料库放 D 盘。
 - 开发前读取 D:/codex/skills/ponytail/SKILL.md 和 D:/codex/skills/superpowers/开发前注意/agent-development-standards/SKILL.md，按任务读取 references。
 - 设计与计划见 docs/design.md、docs/plan.md；已确认用户仅手动收集，周日北京时间 21:00 总结，四种清理均需预览后确认。
