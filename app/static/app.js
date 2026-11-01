@@ -67,8 +67,40 @@ function renderPapers(rows) {
     }[paper.state] || paper.state;
     for (const file of paper.files) {
       if (!file.exists || file.status !== "present") continue;
-      const label = {pdf: "PDF", markdown: "Markdown", validation: "检查记录"}[file.kind];
+      const label = file.path.endsWith("/paper.zh.md") ? "下载中文译文" :
+        file.path.endsWith("/translation.validation.json") ? "译文检查记录" :
+        {pdf: "PDF", markdown: "Markdown", validation: "检查记录"}[file.kind];
       if (label) files.append(fileLink(file.path, label), document.createTextNode(" "));
+    }
+
+    const source = paper.files.find(file => file.kind === "markdown" && file.path.endsWith("/paper.md") && file.exists && file.status === "present");
+    const translation = paper.files.find(file => file.path.endsWith("/paper.zh.md") && file.exists && file.status === "present");
+    if (translation) {
+      const view = node("details", "", {class: "translation-view"});
+      view.append(node("summary", "查看中文译文"));
+      const content = node("pre", "展开后读取本地译文…");
+      view.append(content);
+      let loaded = false;
+      view.addEventListener("toggle", () => {
+        if (!view.open || loaded) return;
+        guarded(async () => {
+          const response = await fetch("/api/files?path=" + encodeURIComponent(translation.path));
+          if (!response.ok) throw new Error("译文不存在，请刷新资料库。");
+          content.textContent = await response.text(); loaded = true;
+        });
+      });
+      title.append(view);
+    } else {
+      const translate = node("button", "中文全文翻译", {type: "button", class: "secondary translate-button"});
+      translate.disabled = !source;
+      translate.title = source ? "通过 DeepSeek 分段翻译，结果保存到 D 盘" : "请先收集或恢复本地 Markdown 全文";
+      translate.addEventListener("click", () => guarded(async () => {
+        if (!confirm("将 " + paper.ref + " 的全文发送到 DeepSeek 翻译并产生 API 费用。原文保留，译文保存到 D 盘，是否继续？")) return;
+        translate.disabled = true;
+        try { await submitJob("/api/translate", {ref: paper.ref}); }
+        finally { translate.disabled = !source; }
+      }));
+      title.append(translate);
     }
     tr.append(choose, title, status, files); body.append(tr);
   }
@@ -96,7 +128,7 @@ function renderJobs(rows) {
     partial: "部分完成", failed: "失败", interrupted: "中断"};
   for (const job of rows.slice(0, 15)) {
     const item = node("div", "", {class: "job"});
-    const kinds = {collect: "收集论文", import: "导入 PDF", brief: "生成简报", weekly: "每周总结", "catch-up": "补充周报"};
+    const kinds = {translate: "中文全文翻译", collect: "收集论文", import: "导入 PDF", brief: "生成简报", weekly: "每周总结", "catch-up": "补充周报"};
     item.append(node("strong", (kinds[job.kind] || job.kind) + " · " + (labels[job.status] || job.status)));
     item.append(node("small", new Date(job.created).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})));
     if (job.error) item.append(node("p", job.error, {class: "error"}));
@@ -138,7 +170,7 @@ $("searchForm").addEventListener("submit", event => {
   guarded(async () => {
     notify("正在检索论文元数据…");
     const data = await call("/api/search", {method: "POST", body: {
-      mode: $("mode").value, days: Number($("days").value),
+      mode: $("mode").value, period: $("days").value,
       limit: Number($("limit").value), query: $("query").value
     }});
     searchId = data.search_id;

@@ -32,8 +32,13 @@ class Body(BaseModel):
 class SearchBody(Body):
     mode: Literal["latest", "hot"] = "latest"
     days: int = Field(default=7, ge=1, le=365)
+    period: Literal["day", "week", "month", "half_year", "year"] | None = None
     limit: int = Field(default=5, ge=1, le=10)
     query: str = Field(default="", max_length=300)
+
+
+class TranslateBody(Body):
+    ref: str = Field(min_length=1, max_length=80)
 
 
 class CollectBody(Body):
@@ -203,7 +208,7 @@ def create_app(library=None, config_path=None):
 
     @app.post("/api/search", dependencies=auth)
     def search(body: SearchBody):
-        rows = fetch_candidates(body.mode, body.days, body.limit, body.query)
+        rows = fetch_candidates(body.mode, body.days, body.limit, body.query, body.period)
         ident = uuid.uuid4().hex
         record = {"created": now(), "candidates": rows}
         path = store.safe_path(f"temp/search/{ident}.json")
@@ -268,6 +273,16 @@ def create_app(library=None, config_path=None):
         finally:
             if not submitted:
                 path.unlink(missing_ok=True)
+
+    @app.post("/api/translate", status_code=202, dependencies=auth)
+    def translate(body: TranslateBody, background: BackgroundTasks):
+        from workflows.translate import translate_paper
+        store.lookup(body.ref)
+        source = store.directory(body.ref)/"paper.md"
+        if not source.is_file():
+            raise HTTPException(422, "请先收集或恢复本地 Markdown 全文")
+        model = ai()
+        return runner.submit(background, "translate", lambda: translate_paper(store, body.ref, model))
 
     @app.post("/api/brief", status_code=202, dependencies=auth)
     def brief(body: BriefBody, background: BackgroundTasks):

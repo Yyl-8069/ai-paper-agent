@@ -66,11 +66,11 @@
     <form id="searchForm" class="search-form">
       <label class="query-field">研究主题<input id="query" placeholder="例如 Agent memory、multimodal，留空覆盖 AI"></label>
       <label>论文来源<select id="mode"><option value="latest">arXiv 最新</option><option value="hot">社区热门</option></select></label>
-      <label>最近天数<input id="days" type="number" min="1" max="365" value="7"></label>
+      <label>时间范围<select id="days"><option value="day">1 天内</option><option value="week" selected>7 天内</option><option value="month">一个月内</option><option value="half_year">半年内</option><option value="year">一年内</option></select></label>
       <label>候选数量<input id="limit" type="number" min="1" max="10" value="5"></label>
       <button type="submit"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>检索论文</button>
     </form>
-    <div class="source-note"><span class="source-dot"></span>arXiv 元数据 · 热门信号来自 Hugging Face 社区票数</div>
+    <div class="source-note"><span class="source-dot"></span>arXiv 元数据 · 热门信号来自 Hugging Face 当日候选的社区票数；时间范围用于筛选候选，不代表历史热榜</div>
     <div id="candidates"></div>
     <div id="collectControls" class="collection-actions" hidden>
       <label class="check"><input type="checkbox" id="summarize" checked>收集后生成中文简报</label>
@@ -80,7 +80,7 @@
   </section>
 
   <section class="panel" id="library" aria-labelledby="libraryTitle">
-    <div class="section-heading"><div><p class="section-kicker">02 / LIBRARY</p><h2 id="libraryTitle">我的资料库</h2><p class="section-description">用论文编号定位原文、转换全文与检查记录。</p></div><button id="refreshButton" type="button" class="secondary compact">刷新列表 <span aria-hidden="true">↻</span></button></div>
+    <div class="section-heading"><div><p class="section-kicker">02 / LIBRARY</p><h2 id="libraryTitle">我的资料库</h2><p class="section-description">用论文编号定位原文、转换全文与检查记录；可按需生成中文全文译文。</p></div><button id="refreshButton" type="button" class="secondary compact">刷新列表 <span aria-hidden="true">↻</span></button></div>
     <div class="table-wrap"><table><thead><tr><th scope="col">选择</th><th scope="col">论文编号 / 标题</th><th scope="col">处理状态</th><th scope="col">本地文件</th></tr></thead><tbody id="papers"></tbody></table></div>
     <div class="library-actions"><p class="hint">勾选论文后，可生成简报或在下方清理对应文件。</p><button id="briefButton" type="button" class="secondary">生成选中论文简报</button></div>
   </section>
@@ -106,13 +106,13 @@
   <section class="panel import-panel" id="ingest" aria-labelledby="ingestTitle">
     <div class="import-intro"><span class="upload-mark"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg></span><div><h2 id="ingestTitle">已有论文？从本地开始</h2><p class="section-description">导入 PDF，在本机转换为 Markdown 并检查格式。</p></div></div>
     <form id="importForm" class="import-form"><label>论文 PDF<input type="file" id="pdf" accept=".pdf,application/pdf" required></label><label>论文标题<input id="title" placeholder="留空使用文件名"></label><button type="submit" class="secondary">导入并转换</button></form>
-    <p class="hint">最大 50 MiB · 文件、缓存和转换结果保存在 D 盘 · 无需模型密钥</p>
+    <p class="hint">最大 50 MiB · 文件、译文、缓存和转换结果保存在 D 盘 · 无需模型密钥</p>
   </section>
 
   <section class="panel settings-panel" id="settings" aria-labelledby="settingsTitle">
     <div class="section-heading"><div><p class="section-kicker">PREFERENCES</p><h2 id="settingsTitle">模型设置</h2><p class="section-description" id="configState">正在读取配置…</p></div><span class="subtle-tag">DeepSeek</span></div>
     <form id="configForm" class="config-form"><label>API 密钥<input id="apiKey" type="password" autocomplete="off" placeholder="留空保留已有密钥"></label><label>模型名称<input id="model" value="deepseek-flash" required></label><button type="submit" class="secondary">保存配置</button></form>
-    <p class="hint">PDF 完全在本机解析。生成中文简报和周报时，提取文本会发送到 DeepSeek 并产生 API 费用。</p>
+    <p class="hint">PDF 完全在本机解析。生成中文译文、简报和周报时，提取文本会发送到 DeepSeek 并产生 API 费用。</p>
   </section>
 
   <section class="panel cleanup-panel" id="cleanup" aria-labelledby="cleanupTitle">

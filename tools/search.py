@@ -86,3 +86,18 @@ def hot_papers(limit,client=None):
         return sorted(result,key=lambda p:p["evidence"]["upvotes"],reverse=True)[:limit]
     finally:
         if owned:client.close()
+
+def range_start(period, end):
+    """Calendar ranges use Beijing local time and clip invalid month-end days."""
+    import calendar
+    from datetime import timedelta
+    local = end.astimezone(timezone(timedelta(hours=8)))
+    if period in {"day", "week"}:
+        return end - timedelta(days=1 if period == "day" else 7)
+    months = {"month": 1, "half_year": 6, "year": 12}
+    if period not in months:raise ValueError("无效时间范围")
+    index = local.year*12 + local.month-1-months[period]
+    year, month = divmod(index, 12)
+    start = local.replace(year=year, month=month+1,
+                          day=min(local.day, calendar.monthrange(year, month+1)[1]))
+    return start.astimezone(end.tzinfo)

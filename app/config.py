@@ -3,6 +3,14 @@ from pathlib import Path
 from agents.researcher import Researcher
 
 PROJECT=Path(__file__).resolve().parents[1]
+if PROJECT.drive.casefold() == "c:":
+    raise ValueError("项目运行目录不能在 C 盘，请放在 D 盘")
+# Direct uvicorn/CLI startup must use the same D-drive temp path as launch scripts.
+import tempfile
+_runtime_temp = PROJECT/"tmp"
+_runtime_temp.mkdir(parents=True, exist_ok=True)
+os.environ["TEMP"] = os.environ["TMP"] = str(_runtime_temp)
+tempfile.tempdir = str(_runtime_temp)
 
 def load_config(path=None):
     values={}

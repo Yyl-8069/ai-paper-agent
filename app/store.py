@@ -21,6 +21,8 @@ def atomic_text(path, text):
 class Store:
     def __init__(self, root):
         self.root = Path(root).resolve()
+        if self.root.drive.casefold() == "c:":
+            raise ValueError("禁止在 C 盘保存资料库，请选择 D 盘或其他数据盘")
         self.root.mkdir(parents=True, exist_ok=True)
         self.db = self.root / "collection.sqlite"
         with self.connect() as c:

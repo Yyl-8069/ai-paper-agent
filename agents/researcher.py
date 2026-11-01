@@ -66,3 +66,27 @@ class Researcher:
                 raise ValueError("invalid reference in model output")
         return {"sections":sections,"coverage":coverage,
                 "usage":[{"model":self.model,"tokens":payload.get("usage"),"cost":"unknown"}]}
+
+    def translate(self, text):
+        body = {"model": self.model, "messages": [
+            {"role": "system", "content": (PROMPTS/"translation.md").read_text(encoding="utf-8")},
+            {"role": "user", "content": text}],
+            "response_format": {"type": "json_object"}, "thinking": {"type": "disabled"},
+            "temperature": 0.1, "max_tokens": 8000, "stream": False}
+        owned = self.client is None
+        client = self.client or httpx.Client(timeout=120, trust_env=False)
+        try:
+            response = client.post("https://api.deepseek.com/chat/completions",
+                headers={"Authorization": "Bearer "+self.key}, json=body)
+            if response.status_code >= 400:
+                raise RuntimeError(f"DeepSeek 请求失败 HTTP {response.status_code}，请检查配置")
+            payload = response.json()
+            choice = payload["choices"][0]
+            if choice.get("finish_reason") != "stop":
+                raise ValueError("翻译输出未完整结束，未保存译文")
+            result = json.loads(choice["message"]["content"])
+            if not isinstance(result, dict) or not isinstance(result.get("translation"), str) or not result["translation"].strip():
+                raise ValueError("翻译输出结构无效")
+            return {"translation": result["translation"], "usage": payload.get("usage")}
+        finally:
+            if owned:client.close()

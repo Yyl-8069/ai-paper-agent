@@ -45,16 +45,20 @@ def previous_week():
     iso=previous.isocalendar()
     return f"{iso.year}-W{iso.week:02d}"
 
-def fetch_candidates(mode,days,limit,query):
+def fetch_candidates(mode,days,limit,query,period=None):
+    from tools.search import range_start
+    end=datetime.now(timezone.utc)
+    start=range_start(period,end) if period else end-timedelta(days=days)
     if mode=="hot":
         hot=hot_papers(limit)
         if not hot:return []
         canonical=arxiv_by_ids([p["source_id"] for p in hot])
         by_id={p["source_id"]:p for p in canonical}
         return [{**by_id[p["source_id"]],"evidence":p["evidence"]}
-                for p in hot if p["source_id"] in by_id]
-    end=datetime.now(timezone.utc)
-    return search_papers(query,end-timedelta(days=days),end,limit)
+                for p in hot if p["source_id"] in by_id
+                and start <= datetime.fromisoformat(by_id[p["source_id"]]["published_at"].replace("Z","+00:00")) <= end
+                and (not query.strip() or query.casefold() in (by_id[p["source_id"]]["title"]+" "+by_id[p["source_id"]]["abstract"]).casefold())]
+    return search_papers(query,start,end,limit)
 
 def select_cleanup(store,mode,refs,reports,since=None,until=None):
     if refs==["all"]:refs=[p["ref"] for p in store.papers()]
