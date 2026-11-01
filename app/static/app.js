@@ -39,8 +39,11 @@ function checkbox(className, value, checked = false) {
   input.setAttribute("aria-label", "选择 " + value);
   return input;
 }
-async function guarded(action) {
+async function guarded(action, button = null) {
+  if (button?.disabled) return;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
   try { await action(); } catch (error) { notify(error.message, true); }
+  finally { if (button) { button.disabled = false; button.removeAttribute("aria-busy"); } }
 }
 function fileLink(path, label) {
   return node("a", label, {href: "/api/files?path=" + encodeURIComponent(path)});
@@ -163,17 +166,34 @@ $("configForm").addEventListener("submit", event => {
     $("apiKey").value = "";
     $("configState").textContent = data.key_configured ? "密钥已配置（不显示内容）" : "尚未配置密钥";
     notify("DeepSeek 配置已保存。");
-  });
+  }, event.submitter);
 });
-$("searchForm").addEventListener("submit", event => {
-  event.preventDefault();
-  guarded(async () => {
-    notify("正在检索论文元数据…");
-    const data = await call("/api/search", {method: "POST", body: {
-      mode: $("mode").value, period: $("days").value,
-      limit: Number($("limit").value), query: $("query").value
-    }});
-    searchId = data.search_id;
+function searchModeChanged() {
+  const related = $("mode").value === "related";
+  $("relatedField").hidden = !related;
+  $("days").querySelector('option[value="all"]').disabled = !related;
+  $("days").value = related ? "all" : "week";
+}
+$("mode").addEventListener("change", searchModeChanged);
+let searchParams = null, searchOffset = 0, searchBusy = false;
+async function runSearch(params, offset) {
+  if (searchBusy) return;
+  searchBusy = true;
+  $("searchButton").disabled = true;
+  $("searchButton").setAttribute("aria-busy", "true");
+  $("searchButton").textContent = "检索中…";
+  $("prevPage").disabled = $("nextPage").disabled = true;
+  $("collectControls").hidden = true;
+  $("candidates").setAttribute("aria-busy", "true");
+  $("pageInfo").textContent = "正在检索…";
+  searchId = "";
+  const started = performance.now();
+  const status = () => { $("searchStatus").textContent = "正在请求 arXiv，已等待 " + Math.floor((performance.now()-started)/1000) + " 秒；请勿重复点击。"; };
+  status();
+  const timer = setInterval(status, 1000);
+  try {
+    const data = await call("/api/search", {method: "POST", body: {...params, offset}});
+    searchParams = {...params}; searchOffset = offset; searchId = data.search_id;
     const box = $("candidates"); box.replaceChildren();
     data.candidates.forEach((paper, i) => {
       const row = node("label", "", {class: "candidate"});
@@ -186,16 +206,47 @@ $("searchForm").addEventListener("submit", event => {
       info.append(node("p", paper.abstract || "暂无摘要"));
       row.append(info); box.append(row);
     });
+    clearInterval(timer);
+    $("searchStatus").textContent = (data.cached ? "已读取 5 分钟内缓存。" : "检索完成。")
+      + "本页 " + data.candidates.length + " 篇"
+      + (data.total == null ? "" : "，匹配共 " + data.total + " 篇")
+      + "，耗时 " + ((performance.now()-started)/1000).toFixed(1) + " 秒。"
+      + (data.candidates.length ? "翻页会清空本页勾选，请先收集需要的论文。" : "可扩大时间范围或调整相关词。");
     $("collectControls").hidden = !data.candidates.length;
-    notify(data.candidates.length ? "请勾选想收集的论文，再点击收集。" : "该范围未找到论文。");
+    $("searchPages").hidden = params.mode !== "related";
+    $("pageInfo").textContent = "第 " + (Math.floor(offset/params.limit)+1) + " 页";
+    $("prevPage").disabled = offset === 0;
+    $("nextPage").disabled = !data.has_more;
+    notify(data.candidates.length ? "检索完成，请选择需要的论文。" : "没有匹配结果，请调整条件。");
+  } catch (error) {
+    $("searchStatus").textContent = "检索失败：" + error.message + "。可稍后重试。";
+    throw error;
+  } finally {
+    clearInterval(timer); searchBusy = false;
+    $("candidates").removeAttribute("aria-busy");
+    $("searchButton").disabled = false;
+    $("searchButton").removeAttribute("aria-busy");
+    $("searchButton").textContent = "检索论文";
+  }
+}
+$("searchForm").addEventListener("submit", event => {
+  event.preventDefault();
+  guarded(async () => {
+    const params = {mode: $("mode").value, period: $("days").value,
+      limit: Number($("limit").value), query: $("query").value.trim(),
+      related: $("mode").value === "related" ? $("related").value.trim() : ""};
+    if (params.mode === "related" && !params.query) throw new Error("请输入研究关键词，例如 harness。");
+    await runSearch(params, 0);
   });
 });
-$("collectButton").addEventListener("click", () => guarded(async () => {
+$("prevPage").addEventListener("click", () => guarded(() => runSearch(searchParams, Math.max(0, searchOffset-searchParams.limit))));
+$("nextPage").addEventListener("click", () => guarded(() => runSearch(searchParams, searchOffset+searchParams.limit)));
+$("collectButton").addEventListener("click", event => guarded(async () => {
   const indices = selected("candidateCheck").map(Number);
   if (!indices.length) throw new Error("请先勾选候选论文。");
   await submitJob("/api/collect", {search_id: searchId, indices,
     summarize: $("summarize").checked, restore: $("restore").checked});
-}));
+}, event.currentTarget));
 $("importForm").addEventListener("submit", event => {
   event.preventDefault();
   guarded(async () => {
@@ -205,19 +256,19 @@ $("importForm").addEventListener("submit", event => {
     const params = new URLSearchParams({title: $("title").value, filename: file.name});
     await submitJob("/api/import?" + params, file, {headers: {"Content-Type": "application/pdf"}});
     $("pdf").value = "";
-  });
+  }, event.submitter);
 });
-$("briefButton").addEventListener("click", () => guarded(async () => {
+$("briefButton").addEventListener("click", event => guarded(async () => {
   const refs = selected("paperCheck");
   if (!refs.length) throw new Error("请先在“我的论文”中勾选论文。");
   await submitJob("/api/brief", {refs});
-}));
+}, event.currentTarget));
 $("weeklyForm").addEventListener("submit", event => {
   event.preventDefault();
-  guarded(() => submitJob("/api/weekly", {week: $("week").value.trim() || null, force: $("force").checked}));
+  guarded(() => submitJob("/api/weekly", {week: $("week").value.trim() || null, force: $("force").checked}), event.submitter);
 });
-$("catchUpButton").addEventListener("click", () => guarded(() => submitJob("/api/catch-up")));
-$("refreshButton").addEventListener("click", () => guarded(async () => { await refresh(); notify("资料库已刷新。"); }));
+$("catchUpButton").addEventListener("click", event => guarded(() => submitJob("/api/catch-up"), event.currentTarget));
+$("refreshButton").addEventListener("click", event => guarded(async () => { await refresh(); notify("资料库已刷新。"); }, event.currentTarget));
 $("cleanupForm").addEventListener("submit", event => {
   event.preventDefault();
   guarded(async () => {
@@ -229,10 +280,10 @@ $("cleanupForm").addEventListener("submit", event => {
       + (cleanupPlan.bytes_total / 1024 / 1024).toFixed(2) + " MiB。编号索引继续保留。";
     $("previewFiles").textContent = cleanupPlan.targets.map(item => item.path).join("\n") || "没有符合条件的文件。";
     $("deleteButton").disabled = cleanupPlan.targets.length === 0;
-  });
+  }, event.submitter);
 });
 $("cancelDelete").addEventListener("click", () => { cleanupPlan = null; $("preview").hidden = true; });
-$("deleteButton").addEventListener("click", () => guarded(async () => {
+$("deleteButton").addEventListener("click", event => guarded(async () => {
   if (!cleanupPlan) return;
   if (!confirm("确认永久删除预览中的 " + cleanupPlan.targets.length + " 个文件？此操作不经过回收站。")) return;
   const data = await call("/api/cleanup/execute", {method: "POST", body: {
@@ -241,7 +292,7 @@ $("deleteButton").addEventListener("click", () => guarded(async () => {
   $("preview").hidden = true; cleanupPlan = null;
   notify("已删除 " + data.deleted.length + " 个文件；失败 " + data.failed.length + " 个。", data.failed.length > 0);
   await refresh();
-}));
+}, event.currentTarget));
 async function init() {
   token = (await call("/api/session")).token;
   const config = await call("/api/config");

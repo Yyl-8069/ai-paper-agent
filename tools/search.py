@@ -101,3 +101,33 @@ def range_start(period, end):
     start = local.replace(year=year, month=month+1,
                           day=min(local.day, calendar.monthrange(year, month+1)[1]))
     return start.astimezone(end.tzinfo)
+
+def search_topic(query, related, start, end, limit, offset=0, client=None):
+    """Historical title/abstract search; keywords are data, never raw query syntax."""
+    if not 1 <= limit <= 10 or not 0 <= offset <= 1000:
+        raise ValueError("每页数量需为 1–10，翻页范围为前 1000 条")
+    terms = re.findall(r"[\w-]+", query, flags=re.UNICODE)
+    alternatives = [" ".join(re.findall(r"[\w-]+", term, flags=re.UNICODE))
+                    for term in re.split(r"[,，;；\n]", related)]
+    terms = list(dict.fromkeys(terms + [term for term in alternatives if term]))
+    if not terms or not re.findall(r"[\w-]+", query, flags=re.UNICODE):
+        raise ValueError("请输入研究关键词，例如 harness")
+    if len(terms) > 20:
+        raise ValueError("关键词和相关词合计不能超过 20 项")
+    expr = "(" + " OR ".join(f'ti:"{term}" OR abs:"{term}"' for term in terms) + ")"
+    if start is not None:
+        if start >= end:raise ValueError("起始时间必须早于结束时间")
+        expr += f" AND submittedDate:[{start.astimezone(timezone.utc):%Y%m%d%H%M} TO {end.astimezone(timezone.utc):%Y%m%d%H%M}]"
+    owned = client is None
+    client = client or httpx.Client(timeout=httpx.Timeout(30, connect=10), trust_env=False)
+    try:
+        response = client.get(ARXIV, params={"search_query":expr, "start":offset,
+            "max_results":limit, "sortBy":"relevance", "sortOrder":"descending"})
+        response.raise_for_status()
+        rows = _entries(response.content)
+        feed = feedparser.parse(response.content)
+        total = int(feed.feed.get("opensearch_totalresults", offset+len(rows)))
+        return {"candidates":rows, "total":total, "offset":offset,
+                "has_more":bool(rows) and offset+len(rows)<min(total,1000)}
+    finally:
+        if owned:client.close()

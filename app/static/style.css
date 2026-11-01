@@ -161,3 +161,11 @@ footer { display: flex; justify-content: space-between; gap: 18px; padding: 2px 
 .translation-view { margin-top: 12px; max-width: 65ch; }
 .translation-view summary { cursor: pointer; color: var(--primary, #285f79); }
 .translation-view pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 560px; overflow-y: auto; font-family: inherit; line-height: 1.85; background: #f5f7f8; padding: 16px; }
+
+.search-pages { display:flex; align-items:center; justify-content:center; gap:16px; margin:18px 0; }
+button[aria-busy="true"] { cursor:progress; opacity:.72; }
+button[aria-busy="true"]:not(#searchButton)::after { content:" · 处理中"; }
+#searchStatus { padding:12px 14px; background:#f1f5f7; border-radius:8px; line-height:1.7; }
+button:active:not(:disabled) { transform:translateY(1px); }
+
+#candidates[aria-busy="true"] { opacity: .55; pointer-events: none; }

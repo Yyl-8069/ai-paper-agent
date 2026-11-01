@@ -64,14 +64,21 @@
   <section class="panel discover-panel" id="discover" aria-labelledby="discoverTitle">
     <div class="section-heading"><div><p class="section-kicker">01 / DISCOVER</p><h2 id="discoverTitle">发现值得阅读的研究</h2><p class="section-description">从最新论文或社区热度出发，由你决定收集哪些。</p></div><span class="subtle-tag">手动收集</span></div>
     <form id="searchForm" class="search-form">
-      <label class="query-field">研究主题<input id="query" placeholder="例如 Agent memory、multimodal，留空覆盖 AI"></label>
-      <label>论文来源<select id="mode"><option value="latest">arXiv 最新</option><option value="hot">社区热门</option></select></label>
-      <label>时间范围<select id="days"><option value="day">1 天内</option><option value="week" selected>7 天内</option><option value="month">一个月内</option><option value="half_year">半年内</option><option value="year">一年内</option></select></label>
+      <label class="query-field">研究主题<input id="query" placeholder="例如 harness；相关检索需填写关键词"></label>
+      <label>论文来源<select id="mode"><option value="related" selected>关键词相关检索</option><option value="latest">arXiv 最新</option><option value="hot">社区热门</option></select></label>
+      <label>时间范围<select id="days"><option value="all" selected>不限时间</option><option value="day">1 天内</option><option value="week">7 天内</option><option value="month">一个月内</option><option value="half_year">半年内</option><option value="year">一年内</option></select></label>
       <label>候选数量<input id="limit" type="number" min="1" max="10" value="5"></label>
-      <button type="submit"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>检索论文</button>
+      <label class="query-field" id="relatedField">相关词（可选，逗号分隔）<input id="related" placeholder="例如 evaluation harness, agent framework"></label>
+      <button id="searchButton" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>检索论文</button>
     </form>
     <div class="source-note"><span class="source-dot"></span>arXiv 元数据 · 热门信号来自 Hugging Face 当日候选的社区票数；时间范围用于筛选候选，不代表历史热榜</div>
+    <p id="searchStatus" class="hint" role="status" aria-live="polite">输入关键词，在历史论文标题和摘要中按相关度检索。</p>
     <div id="candidates"></div>
+    <nav id="searchPages" class="search-pages" aria-label="检索结果分页" hidden>
+      <button id="prevPage" class="secondary" type="button">上一页</button>
+      <span id="pageInfo"></span>
+      <button id="nextPage" class="secondary" type="button">下一页</button>
+    </nav>
     <div id="collectControls" class="collection-actions" hidden>
       <label class="check"><input type="checkbox" id="summarize" checked>收集后生成中文简报</label>
       <label class="check"><input type="checkbox" id="restore">恢复此前主动删除的文件</label>

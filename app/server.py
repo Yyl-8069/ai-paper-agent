@@ -19,6 +19,9 @@ from app.cli import fetch_candidates, library_lock, previous_week
 from app.config import PROJECT, load_config
 from app.jobs import JobRunner, service_lock
 from tools.credentials import validate_api_key
+from tools.search import search_topic, range_start
+import time
+import httpx
 from app.store import Store, atomic_text, now
 from tools.cleanup import execute_cleanup, plan_cleanup
 from workflows.collect import collect_candidates, import_pdf
@@ -30,11 +33,13 @@ class Body(BaseModel):
 
 
 class SearchBody(Body):
-    mode: Literal["latest", "hot"] = "latest"
+    mode: Literal["latest", "hot", "related"] = "latest"
     days: int = Field(default=7, ge=1, le=365)
-    period: Literal["day", "week", "month", "half_year", "year"] | None = None
+    period: Literal["all", "day", "week", "month", "half_year", "year"] | None = None
     limit: int = Field(default=5, ge=1, le=10)
     query: str = Field(default="", max_length=300)
+    related: str = Field(default="", max_length=500)
+    offset: int = Field(default=0, ge=0, le=1000)
 
 
 class TranslateBody(Body):
@@ -90,6 +95,7 @@ def create_app(library=None, config_path=None):
     config_path = Path(config_path or PROJECT / ".env")
     runner = JobRunner(store)
     token = secrets.token_urlsafe(32)
+    search_cache = {}
 
     @asynccontextmanager
     async def lifespan(application):
@@ -140,6 +146,14 @@ def create_app(library=None, config_path=None):
     @app.exception_handler(ValueError)
     async def invalid_value(request, error):
         return JSONResponse(status_code=422, content={"detail": str(error)})
+
+    @app.exception_handler(httpx.TimeoutException)
+    async def source_timeout(request, error):
+        return JSONResponse(status_code=504, content={"detail": "论文来源响应超时，请稍后重试或缩小查询范围"})
+
+    @app.exception_handler(httpx.HTTPError)
+    async def source_unavailable(request, error):
+        return JSONResponse(status_code=502, content={"detail": "论文来源暂时不可用，请稍后重试"})
 
     @app.exception_handler(RuntimeError)
     async def operation_conflict(request, error):
@@ -208,12 +222,32 @@ def create_app(library=None, config_path=None):
 
     @app.post("/api/search", dependencies=auth)
     def search(body: SearchBody):
-        rows = fetch_candidates(body.mode, body.days, body.limit, body.query, body.period)
+        key = body.model_dump_json()
+        cached = search_cache.get(key)
+        if cached and time.monotonic()-cached[0] < 300:
+            return {**cached[1], "cached": True, "elapsed_ms": 0}
+        started = time.monotonic()
+        if body.mode == "related":
+            end = datetime.now(timezone.utc)
+            start = range_start(body.period, end) if body.period not in {None, "all"} else None
+            result = search_topic(body.query, body.related, start, end, body.limit, body.offset)
+            rows = result["candidates"]
+        else:
+            if body.period == "all":
+                raise HTTPException(422, "不限时间请使用关键词相关检索")
+            if body.offset:
+                raise HTTPException(422, "当前来源不支持翻页，请使用关键词相关检索")
+            rows = fetch_candidates(body.mode, body.days, body.limit, body.query, body.period)
+            result = {"candidates": rows, "offset": 0, "has_more": False, "total": None}
         ident = uuid.uuid4().hex
         record = {"created": now(), "candidates": rows}
         path = store.safe_path(f"temp/search/{ident}.json")
         atomic_text(path, json.dumps(record, ensure_ascii=False))
-        return {"search_id": ident, "candidates": rows}
+        response = {**result, "search_id": ident, "cached": False,
+                    "elapsed_ms": round((time.monotonic()-started)*1000)}
+        if len(search_cache) >= 100:search_cache.pop(next(iter(search_cache)))
+        search_cache[key] = (time.monotonic(), response)
+        return response
 
     @app.post("/api/collect", status_code=202, dependencies=auth)
     def collect(body: CollectBody, background: BackgroundTasks):
