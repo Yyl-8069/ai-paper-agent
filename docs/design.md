@@ -78,7 +78,7 @@ library/
 
 ## 代码、权限与状态
 
-产品应位于独立目录及 Git 仓库，原 markdown_validator 保持参考样例身份。遵循用户要求保留 agents、tools、skills、workflows、prompts、context、memory、tests、evals 九个职责目录。
+产品应位于独立目录及 Git 仓库，原 markdown_validator 保持参考样例身份。原设计保留九个职责目录；2026-11-02 按用户要求调整为只保留实际使用的目录，移除无独立实现的 memory/、context/、skills/ 占位说明。
 
 工作流控制顺序、重试和停止；Agent 只负责筛选与总结；工具分别实现查询、下载、转换、格式检查、保存与删除。模型不能绕过删除确认或执行任意系统命令。
 

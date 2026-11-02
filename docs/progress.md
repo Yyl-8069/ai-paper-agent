@@ -40,3 +40,5 @@ README focus correction 2026-11-01: user reaffirmed Markdown skill application a
 README simplification 2026-11-01: user requested less prose and explicit Markdown check scope. Replaced long README with concise scope table, implementation entry, startup, file locations, verification and limits; detailed iteration history remains in this ledger. Documentation only.
 
 README framing 2026-11-02: added concise background, reusable general Markdown validator objective, and paper collection → local PDF conversion → validation workflow before the check-scope table. Kept the distinction between a general-purpose tool and the current paper-adapted rule configuration. Documentation only.
+
+Placeholder cleanup 2026-11-02: user requested deletion of unimplemented placeholder documentation. Removed memory/README.md, context/README.md and skills/README.md and their now-empty directories. Updated project contract and design note to prevent recreating unused placeholders. No runtime files or actual Markdown validation implementation changed.
