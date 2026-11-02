@@ -38,3 +38,5 @@ Keyword search iteration 2026-11-01: user approved historical title/abstract rel
 README focus correction 2026-11-01: user reaffirmed Markdown skill application as primary purpose. Audited collection/import, translation, brief and weekly call sites. README now leads with deterministic validation, shared rules, JSON fields, four integration points, architecture and limitations. Distinguishes PyMarkdown tool integration from full CrewAI execution or installed SKILL.md package. No runtime code changed.
 
 README simplification 2026-11-01: user requested less prose and explicit Markdown check scope. Replaced long README with concise scope table, implementation entry, startup, file locations, verification and limits; detailed iteration history remains in this ledger. Documentation only.
+
+README framing 2026-11-02: added concise background, reusable general Markdown validator objective, and paper collection → local PDF conversion → validation workflow before the check-scope table. Kept the distinction between a general-purpose tool and the current paper-adapted rule configuration. Documentation only.
